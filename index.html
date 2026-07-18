@@ -296,7 +296,7 @@
 <div class="modal-bg" id="mAdmin"><div class="modal">
   <h2>Acceso de Administración</h2><p class="hint">Selecciona tu nombre e introduce la clave del equipo.</p>
   <div class="campo"><label>Responsable</label><select id="ad-nombre">
-    <option>Dr. Alberto Márquez</option><option>Dra. Mair Olivares</option><option>Dra. Yolibel Pedraza</option></select></div>
+    <option>Dr. Alberto Márquez (Párroco)</option><option>Dra. Mair Olivares</option><option>Dra. Yolibel Pedraza</option><option>Rosa Figueroa</option></select></div>
   <div class="campo"><label>Clave del equipo</label><input id="ad-clave" type="password" placeholder="Clave compartida"></div>
   <div class="error-msg" id="ad-err"></div>
   <div class="modal-acc"><button onclick="cerrar('mAdmin')">Cancelar</button><button class="btn-prim" onclick="entrarAdmin()">Entrar</button></div>
@@ -350,8 +350,12 @@
   <div id="movSalidaFields" style="display:none">
     <div class="campo"><label>Autorización</label><select id="mov-autoriza"></select></div>
     <div class="campo"><label>Destino de la entrega</label><select id="mov-destino"></select></div>
+    <div class="fila2">
+      <div class="campo"><label>Zona beneficiada</label><input id="mov-zona" placeholder="Ej. El Valle, Macuto"></div>
+      <div class="campo"><label>Personas beneficiadas</label><input id="mov-personas" type="number" min="0" placeholder="Ej. 25"></div>
+    </div>
   </div>
-  <div class="campo"><label>Nota (opcional)</label><input id="mov-nota" placeholder="Ej. Entrega a familias / Donación recibida"></div>
+  <div class="campo"><label id="mov-nota-lbl">Nota</label><input id="mov-nota" placeholder="Ej. Entrega a familias / Donación recibida"></div>
   <div class="error-msg" id="mov-err"></div>
   <div class="modal-acc"><button onclick="cerrar('modalMov')">Cancelar</button><button class="btn-prim" onclick="confirmarMov()">Confirmar</button></div>
 </div></div>
@@ -558,7 +562,7 @@ var KEY_INV="acopio_consolacion_inv_v6";
 var KEY_REG="acopio_consolacion_reg_v2";
 var KEY_MOV="acopio_consolacion_mov_v1";
 var KEY_DEST="acopio_consolacion_dest_v1";
-var ADMINS_AUTORIZA=["Dra. Mair Olivares","Dr. Alberto Márquez"];
+var ADMINS_AUTORIZA=["Dra. Mair Olivares","Dr. Alberto Márquez (Párroco)"];
 var ADMIN_CARGA="Dra. Yolibel Pedraza";
 
 function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -863,21 +867,25 @@ function abrirMov(x,tipo){var it=find(x);if(!it)return;movId=x;movTipo=tipo;
   document.getElementById("mov-cant").value=1;document.getElementById("mov-nota").value="";document.getElementById("mov-err").textContent="";
   // quien: automatico segun sesion
   document.getElementById("movQuien").textContent=sesion.nombre;
-  // autorizacion y destino solo en salidas
+  // autorizacion, destino y beneficiarios solo en salidas
   document.getElementById("movSalidaFields").style.display=tipo==="out"?"block":"none";
+  document.getElementById("mov-nota-lbl").textContent=tipo==="out"?"Nota (¿qué se entregó y para qué?)":"Nota (opcional)";
+  document.getElementById("mov-nota").placeholder=tipo==="out"?"Ej. 30 kg de arroz para almuerzos comunitarios":"Ej. Donación recibida";
   if(tipo==="out"){
+    document.getElementById("mov-zona").value="";document.getElementById("mov-personas").value="";
     document.getElementById("mov-autoriza").innerHTML=ADMINS_AUTORIZA.map(function(a){return '<option>'+esc(a)+'</option>'}).join("");
     var ds=destinos.map(function(dd){return '<option value="'+dd.id+'">'+esc(dd.nombre)+' ('+esc(dd.zona)+')</option>'}).join("");
     document.getElementById("mov-destino").innerHTML='<option value="">— Sin destino específico —</option>'+ds;
   }
   abrir("modalMov");document.getElementById("mov-cant").focus();}
 function confirmarMov(){var it=find(movId);if(!it)return;var cant=Math.max(1,numv("mov-cant")),e=document.getElementById("mov-err");
-  var reg={id:id(),tipo:movTipo,itemId:it.id,nombre:it.nombre,cant:cant,unidad:it.pres||"unidad",quien:sesion.nombre,autoriza:"",destino:"",nota:val("mov-nota"),fecha:new Date().toISOString()};
+  var reg={id:id(),tipo:movTipo,itemId:it.id,nombre:it.nombre,cant:cant,unidad:it.pres||"unidad",quien:sesion.nombre,autoriza:"",destino:"",zona:"",personas:0,nota:val("mov-nota"),fecha:new Date().toISOString()};
   if(movTipo==="in"){it.stock+=cant;}
   else{if(cant>it.stock){e.textContent="No puede retirar "+cant+". Solo hay "+it.stock+".";return;}
     it.stock-=cant;reg.autoriza=document.getElementById("mov-autoriza").value;
     var dsel=document.getElementById("mov-destino").value;
     if(dsel){var dd=destinos.filter(function(z){return z.id===dsel})[0];reg.destino=dd?dd.nombre+" ("+dd.zona+")":"";}
+    reg.zona=val("mov-zona");reg.personas=numv("mov-personas");
   }
   movimientos.push(reg);guardarMov();guardarInv();render();cerrar("modalMov");}
 
@@ -917,7 +925,8 @@ function generarResumen(fechaISO){
     var n=i.nombre.toLowerCase();return CLAVES_EMERG.some(function(k){return n.indexOf(k)>-1});
   });
   return {fecha:fechaISO,ent:ent,sal:sal,agotados:agotados,bajos:bajos,emergCrit:emergCrit,
-    totalEnt:ent.reduce(function(s,m){return s+m.cant},0),totalSal:sal.reduce(function(s,m){return s+m.cant},0)};
+    totalEnt:ent.reduce(function(s,m){return s+m.cant},0),totalSal:sal.reduce(function(s,m){return s+m.cant},0),
+    totalPersonas:sal.reduce(function(s,m){return s+(m.personas||0)},0)};
 }
 function renderInforme(){
   var f=hoyISO(),r=generarResumen(f);
@@ -925,9 +934,10 @@ function renderInforme(){
   var h='<h3>Informe diario del Centro de Acopio</h3><div class="fecha">'+fechaTxt+' · Generado automáticamente</div>';
   h+='<div class="inf-sec"><h4>Movimientos del día</h4><div class="inf-num">'+
      '<div class="box e"><div class="n">'+r.ent.length+'</div><div class="l">Entradas ('+r.totalEnt+' und.)</div></div>'+
-     '<div class="box s"><div class="n">'+r.sal.length+'</div><div class="l">Salidas ('+r.totalSal+' und.)</div></div></div></div>';
+     '<div class="box s"><div class="n">'+r.sal.length+'</div><div class="l">Salidas ('+r.totalSal+' und.)</div></div>'+
+     '<div class="box"><div class="n">'+r.totalPersonas+'</div><div class="l">Personas beneficiadas</div></div></div></div>';
   if(r.sal.length){h+='<div class="inf-sec"><h4>Detalle de egresos (trazabilidad)</h4><ul class="mini-list">'+
-     r.sal.map(function(m){return '<li>'+m.cant+' × '+esc(m.nombre)+' — por '+esc(m.quien)+(m.autoriza?', autoriza '+esc(m.autoriza):'')+(m.destino?' → '+esc(m.destino):'')+'</li>'}).join("")+'</ul></div>';}
+     r.sal.map(function(m){return '<li>'+m.cant+' × '+esc(m.nombre)+' — por '+esc(m.quien)+(m.autoriza?', autoriza '+esc(m.autoriza):'')+(m.destino?' → '+esc(m.destino):'')+(m.zona?' · zona: '+esc(m.zona):'')+(m.personas?' · '+m.personas+' personas':'')+'</li>'}).join("")+'</ul></div>';}
   h+='<div class="inf-sec"><h4 style="color:#9a3b2f">⚠ Insumos críticos para emergencia sanitaria</h4>';
   if(r.emergCrit.length){h+='<ul class="mini-list">'+r.emergCrit.map(function(i){
      return '<li style="color:'+(estado(i).rank===0?'#9a3b2f':'#a9701c')+'"><b>'+esc(i.nombre)+'</b> — '+i.stock+' / mínimo '+i.min+' ('+estado(i).txt+')</li>';
@@ -940,7 +950,7 @@ function renderInforme(){
 function textoWhatsApp(){
   var f=hoyISO(),r=generarResumen(f);
   var t="*INFORME DIARIO — Centro de Acopio*\n_Nuestra Señora de la Consolación_\n"+f+"\n\n";
-  t+="📥 Entradas: "+r.ent.length+" ("+r.totalEnt+" und.)\n📤 Salidas: "+r.sal.length+" ("+r.totalSal+" und.)\n\n";
+  t+="📥 Entradas: "+r.ent.length+" ("+r.totalEnt+" und.)\n📤 Salidas: "+r.sal.length+" ("+r.totalSal+" und.)\n👥 Personas beneficiadas: "+r.totalPersonas+"\n\n";
   if(r.emergCrit.length){t+="⚠️ *CRÍTICOS emergencia sanitaria:*\n";
     r.emergCrit.slice(0,15).forEach(function(i){t+="• "+i.nombre+": "+i.stock+"/"+i.min+" ("+estado(i).txt+")\n";});t+="\n";}
   t+="📊 Abastecimiento global: "+abastGlobal()+"%\n";
@@ -980,13 +990,15 @@ function guardarDestino(){var n=val("dest-nombre"),z=document.getElementById("de
 function renderTraza(){
   var q=val("buscarTraza").toLowerCase();
   var lista=movimientos.slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha)})
-    .filter(function(m){return !q||m.nombre.toLowerCase().indexOf(q)>-1||(m.quien||"").toLowerCase().indexOf(q)>-1||(m.destino||"").toLowerCase().indexOf(q)>-1});
+    .filter(function(m){return !q||m.nombre.toLowerCase().indexOf(q)>-1||(m.quien||"").toLowerCase().indexOf(q)>-1||(m.destino||"").toLowerCase().indexOf(q)>-1||(m.zona||"").toLowerCase().indexOf(q)>-1});
   document.getElementById("trazaLista").innerHTML=lista.slice(0,300).map(function(m){
     var fecha=new Date(m.fecha).toLocaleString("es-VE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
     var tag=m.tipo==="in"?'<span class="tipo-tag tipo-in">Entrada</span>':'<span class="tipo-tag tipo-out">Salida</span>';
     var meta="Registró: <b>"+esc(m.quien||"—")+"</b>";
     if(m.autoriza)meta+=" · Autorizó: <b>"+esc(m.autoriza)+"</b>";
     if(m.destino)meta+=" · Destino: <b>"+esc(m.destino)+"</b>";
+    if(m.zona)meta+=" · Zona beneficiada: <b>"+esc(m.zona)+"</b>";
+    if(m.personas)meta+=" · Personas beneficiadas: <b>"+m.personas+"</b>";
     if(m.nota)meta+=" · "+esc(m.nota);
     return '<div class="traza-item '+(m.tipo==="in"?"in":"")+'"><div class="top"><span class="q">'+tag+' '+m.cant+' × '+esc(m.nombre)+'</span><span class="cat">'+fecha+'</span></div>'+
       '<div class="meta">'+meta+'</div></div>';

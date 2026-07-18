@@ -73,6 +73,26 @@
   .kpi .n{font-size:24px;font-weight:700;line-height:1}
   .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-suave);margin-top:4px}
   .kpi.b .n{color:var(--ambar)}.kpi.c .n{color:var(--rojo)}.kpi.v .n{color:var(--verde)}
+  .kpi-click{cursor:pointer;position:relative}
+  .kpi-click:hover{background:#f6f8fa;border-color:var(--azul)}
+  .kpi-click.on{border-color:var(--azul);box-shadow:0 0 0 2px rgba(47,74,99,.15),var(--sombra)}
+  .kpi-click::after{content:"›";position:absolute;top:8px;right:10px;color:var(--tinta-suave);font-size:16px;transform:rotate(90deg);opacity:.5}
+  .kpi-panel{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:16px;margin-top:10px;box-shadow:var(--sombra)}
+  .kpi-panel h3{margin:0 0 4px;font-size:16px}
+  .kpi-panel .subt{color:var(--tinta-suave);font-size:12.5px;margin:0 0 12px}
+  .kpi-panel .cerrar{float:right;cursor:pointer;color:var(--tinta-suave);font-size:20px;line-height:1;border:0;background:transparent;padding:0}
+  .kpi-cols{columns:2;column-gap:20px}
+  @media(max-width:640px){.kpi-cols{columns:1}}
+  .kpi-cols .it{break-inside:avoid;display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--linea);font-size:13px}
+  .kpi-cols .it .v{font-weight:600;white-space:nowrap}
+  .kpi-cols .it .v.rojo{color:var(--rojo)}.kpi-cols .it .v.ambar{color:var(--ambar)}
+  .kpi-cols .it-link{cursor:pointer;border-radius:6px;padding-left:6px;padding-right:6px;margin:0 -6px}
+  .kpi-cols .it-link:hover{background:var(--azul-2)}
+  .kpi-cols .it-link span:first-child{color:var(--azul);text-decoration:underline;text-decoration-color:rgba(47,74,99,.3)}
+  @keyframes resalta{0%{background:#fff7d6}60%{background:#fff7d6}100%{background:transparent}}
+  tr.fila-resalta td{animation:resalta 2.4s ease-out}
+  .formula{background:#f6f8fa;border:1px solid var(--linea);border-radius:8px;padding:12px 14px;font-size:13.5px;margin:10px 0}
+  .formula code{background:#eef0f4;padding:1px 6px;border-radius:4px;font-size:12.5px}
   @media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
 
   .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 6px}
@@ -90,6 +110,8 @@
   tbody td{padding:9px 12px;border-bottom:1px solid var(--linea);vertical-align:top}
   tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#f6f8fa}
   .nombre{font-weight:600}.cat{color:var(--tinta-suave);font-size:11.5px}
+  .caja-tag{display:inline-block;background:#eef0f4;border:1px solid var(--linea);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;color:var(--azul);white-space:nowrap}
+  .caja-vacia{color:var(--linea)}
   .estado{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .e-ok{background:var(--verde-2);color:var(--verde)}.e-bajo{background:var(--ambar-2);color:var(--ambar)}.e-crit{background:var(--rojo-2);color:var(--rojo)}
   .acc{display:flex;gap:6px;flex-wrap:wrap}.acc button{padding:6px 9px;font-size:13px}
@@ -203,12 +225,13 @@
     <div class="vista on" id="v-inv">
       <div class="aviso oro" id="avisoDon" style="display:none">Vista de consulta. Los renglones <b>Agotado</b> o en <b>Nivel bajo</b> son los puntos críticos donde tu donación tiene más impacto.</div>
       <div class="kpis">
-        <div class="kpi"><div class="n" id="k-items">0</div><div class="l">Renglones</div></div>
-        <div class="kpi"><div class="n" id="k-total">0</div><div class="l">Unidades</div></div>
-        <div class="kpi b"><div class="n" id="k-bajo">0</div><div class="l">Nivel bajo</div></div>
-        <div class="kpi c"><div class="n" id="k-crit">0</div><div class="l">Agotados</div></div>
-        <div class="kpi v"><div class="n" id="k-abast">0%</div><div class="l">Abastecim.</div></div>
+        <div class="kpi kpi-click" onclick="verKPI('items',this)"><div class="n" id="k-items">0</div><div class="l">Renglones</div></div>
+        <div class="kpi kpi-click" onclick="verKPI('total',this)"><div class="n" id="k-total">0</div><div class="l">Unidades</div></div>
+        <div class="kpi b kpi-click" onclick="verKPI('bajo',this)"><div class="n" id="k-bajo">0</div><div class="l">Nivel bajo</div></div>
+        <div class="kpi c kpi-click" onclick="verKPI('crit',this)"><div class="n" id="k-crit">0</div><div class="l">Agotados</div></div>
+        <div class="kpi v kpi-click" onclick="verKPI('abast',this)"><div class="n" id="k-abast">0%</div><div class="l">Abastecim.</div></div>
       </div>
+      <div id="kpiPanel" class="kpi-panel" style="display:none"></div>
       <div class="toolbar">
         <div class="search"><span>&#128269;</span><input id="buscar" placeholder="Buscar insumo o categoría…"></div>
         <button class="btn-prim solo-admin" id="btnNuevo" onclick="abrirNuevo()">+ Nuevo insumo</button>
@@ -216,7 +239,7 @@
       <div class="filtros" id="filtros"></div>
       <div class="tabla-caja">
         <table><thead><tr>
-          <th>Insumo</th><th>Presentación</th><th class="num">Stock</th>
+          <th>Insumo</th><th>Presentación</th><th>Ubicación</th><th class="num">Stock</th>
           <th class="num">Mínimo</th><th>Estado</th><th class="solo-gestor">Movimiento</th>
         </tr></thead><tbody id="cuerpo"></tbody></table>
         <div class="empty" id="vacio" style="display:none">No hay insumos que coincidan.</div>
@@ -311,7 +334,8 @@
   <div class="campo"><label>Categoría</label><select id="f-cat"></select></div>
   <div class="fila2"><div class="campo"><label>Presentación</label><input id="f-pres" placeholder="Ej. Caja, Unidad"></div>
     <div class="campo"><label>Stock actual</label><input id="f-stock" type="number" min="0" value="0"></div></div>
-  <div class="campo"><label>Nivel mínimo (alerta)</label><input id="f-min" type="number" min="0" value="10"></div>
+  <div class="fila2"><div class="campo"><label>Nivel mínimo (alerta)</label><input id="f-min" type="number" min="0" value="10"></div>
+    <div class="campo"><label>Ubicación / N° de caja</label><input id="f-caja" placeholder="Ej. Caja 12, Estante A"></div></div>
   <div class="modal-acc"><button onclick="cerrar('modalEdit')">Cancelar</button><button class="btn-prim" onclick="guardar()">Guardar</button></div>
 </div></div>
 
@@ -624,16 +648,17 @@ function render(){
   var esGestor=sesion&&(sesion.rol==="admin"||sesion.rol==="voluntario");
   var esAdmin=sesion&&sesion.rol==="admin";
   var lista=inventario.filter(function(it){return filtroCat==="Todas"||it.cat===filtroCat})
-    .filter(function(it){return !q||it.nombre.toLowerCase().indexOf(q)>-1||it.cat.toLowerCase().indexOf(q)>-1})
+    .filter(function(it){return !q||it.nombre.toLowerCase().indexOf(q)>-1||it.cat.toLowerCase().indexOf(q)>-1||(it.caja||"").toLowerCase().indexOf(q)>-1})
     .sort(function(a,b){return estado(a).rank-estado(b).rank||a.nombre.localeCompare(b.nombre)});
   document.getElementById("cuerpo").innerHTML=lista.map(function(it){
     var e=estado(it),mov="";
     if(esGestor){mov='<td><div class="acc">'+
       '<button class="b-in" onclick="abrirMov(\''+it.id+'\',\'in\')">&#65291; Entrada</button>'+
       '<button class="b-out" onclick="abrirMov(\''+it.id+'\',\'out\')">&#65293; Salida</button>'+
-      (esAdmin?'<button onclick="abrirEdit(\''+it.id+'\')" title="Editar">&#9998;</button>':'')+'</div></td>';}
+      '<button onclick="abrirEdit(\''+it.id+'\')" title="Editar">&#9998;</button></div></td>';}
+    var caja=it.caja?'<span class="caja-tag">&#128230; '+esc(it.caja)+'</span>':'<span class="caja-vacia">&mdash;</span>';
     return '<tr><td><div class="nombre">'+esc(it.nombre)+'</div><div class="cat">'+esc(it.cat)+(it.comp?' · '+esc(it.comp):'')+'</div></td>'+
-      '<td>'+esc(it.pres||"")+'</td><td class="num">'+it.stock+(it.varios?'*':'')+'</td>'+
+      '<td>'+esc(it.pres||"")+'</td><td>'+caja+'</td><td class="num">'+it.stock+(it.varios?'*':'')+'</td>'+
       '<td class="num">'+it.min+'</td><td><span class="estado '+e.clase+'">'+e.txt+'</span></td>'+mov+'</tr>';
   }).join("");
   document.getElementById("vacio").style.display=lista.length?"none":"block";
@@ -643,26 +668,107 @@ function render(){
   document.getElementById("k-bajo").textContent=inventario.filter(function(i){return estado(i).rank===1}).length;
   document.getElementById("k-crit").textContent=inventario.filter(function(i){return estado(i).rank===0}).length;
   document.getElementById("k-abast").textContent=abastGlobal()+"%";
+  if(kpiAbierto)verKPI(kpiAbierto,document.querySelector(".kpi-click.on"),true);
 }
 function abastGlobal(){if(!inventario.length)return 0;
   var s=inventario.reduce(function(a,i){return a+abastItem(i)},0);return Math.round(s/inventario.length);}
+
+/* ===== KPIs desplegables ===== */
+var kpiAbierto=null;
+function verKPI(cual,card,refrescar){
+  var panel=document.getElementById("kpiPanel");
+  var cards=document.querySelectorAll(".kpi-click");
+  // si se vuelve a hacer clic en el mismo (y no es refresco), cerrar
+  if(kpiAbierto===cual && !refrescar){kpiAbierto=null;panel.style.display="none";
+    for(var i=0;i<cards.length;i++)cards[i].className=cards[i].className.replace(" on","");return;}
+  kpiAbierto=cual;
+  for(var j=0;j<cards.length;j++)cards[j].className=cards[j].className.replace(" on","");
+  if(card)card.className+=" on";
+
+  function listaItems(arr,mostrarStock){
+    if(!arr.length)return '<p class="subt">No hay insumos en esta categoría.</p>';
+    arr=arr.slice().sort(function(a,b){return a.nombre.localeCompare(b.nombre)});
+    return '<div class="kpi-cols">'+arr.map(function(it){
+      var extra="";
+      if(mostrarStock==="bajo")extra='<span class="v ambar">'+it.stock+' / min '+it.min+'</span>';
+      else if(mostrarStock==="crit")extra='<span class="v rojo">agotado (min '+it.min+')</span>';
+      else if(mostrarStock==="stock")extra='<span class="v">'+it.stock+' '+esc(it.pres||"")+'</span>';
+      else extra='<span class="v">'+it.stock+'</span>';
+      return '<div class="it it-link" onclick="irAInsumo(\''+it.id+'\')" title="Ir a este insumo"><span>'+esc(it.nombre)+'</span>'+extra+'</div>';
+    }).join("")+'</div>';
+  }
+  var h='<button class="cerrar" onclick="cerrarKPI()">&times;</button>';
+  if(cual==="items"){
+    h+='<h3>'+inventario.length+' renglones en el inventario</h3><p class="subt">Cada insumo distinto registrado, con su stock actual.</p>';
+    h+=listaItems(inventario,"stock");
+  }else if(cual==="total"){
+    var tot=inventario.reduce(function(s,i){return s+Number(i.stock)},0);
+    h+='<h3>'+tot+' unidades en total</h3><p class="subt">Suma de todas las existencias de todos los renglones. Desglose por categoría:</p>';
+    var porCat={};inventario.forEach(function(it){porCat[it.cat]=(porCat[it.cat]||0)+Number(it.stock)});
+    var arr=[];for(var c in porCat)arr.push([c,porCat[c]]);arr.sort(function(a,b){return b[1]-a[1]});
+    h+='<div class="kpi-cols">'+arr.map(function(x){return '<div class="it"><span>'+esc(x[0])+'</span><span class="v">'+x[1]+' und.</span></div>'}).join("")+'</div>';
+  }else if(cual==="bajo"){
+    var bajos=inventario.filter(function(i){return estado(i).rank===1});
+    h+='<h3>'+bajos.length+' insumos en nivel bajo</h3><p class="subt">Su stock está en el mínimo o por debajo. Conviene reponerlos.</p>';
+    h+=listaItems(bajos,"bajo");
+  }else if(cual==="crit"){
+    var crit=inventario.filter(function(i){return estado(i).rank===0});
+    h+='<h3>'+crit.length+' insumos agotados</h3><p class="subt">Sin existencias (stock en cero). Prioridad de reposición.</p>';
+    h+=listaItems(crit,"crit");
+  }else if(cual==="abast"){
+    var g=abastGlobal();
+    h+='<h3>Abastecimiento global: '+g+'%</h3><p class="subt">Qué tan surtido está el centro respecto a los mínimos definidos.</p>';
+    h+='<div class="formula"><b>¿Cómo se calcula?</b><br>'+
+       'Cada insumo tiene un <b>nivel mínimo</b> recomendado. Su abastecimiento es <code>stock ÷ mínimo</code> (tope 100%). '+
+       'Ej.: si el mínimo son 30 y hay 15, ese insumo está al 50%.<br><br>'+
+       'El <b>'+g+'%</b> global es el <b>promedio</b> del abastecimiento de los '+inventario.length+' renglones.</div>';
+    // mostrar por categoria
+    var m={};inventario.forEach(function(it){if(!m[it.cat])m[it.cat]={s:0,n:0};m[it.cat].s+=abastItem(it);m[it.cat].n++});
+    var ca=[];for(var k in m)ca.push([k,Math.round(m[k].s/m[k].n)]);ca.sort(function(a,b){return a[1]-b[1]});
+    h+='<p class="subt" style="margin-top:12px">Por categoría (de menos a más surtido):</p>';
+    h+='<div class="kpi-cols">'+ca.map(function(x){
+      var col=x[1]<34?'rojo':x[1]<67?'ambar':'';
+      return '<div class="it"><span>'+esc(x[0])+'</span><span class="v '+col+'">'+x[1]+'%</span></div>';
+    }).join("")+'</div>';
+  }
+  panel.innerHTML=h;panel.style.display="block";
+  if(!refrescar)panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function cerrarKPI(){kpiAbierto=null;document.getElementById("kpiPanel").style.display="none";
+  var cards=document.querySelectorAll(".kpi-click");for(var i=0;i<cards.length;i++)cards[i].className=cards[i].className.replace(" on","");}
+function irAInsumo(x){
+  var it=find(x);if(!it)return;
+  cerrarKPI();
+  // filtrar a ese insumo por su nombre exacto y limpiar categoria
+  filtroCat="Todas";construirFiltros();
+  document.getElementById("buscar").value=it.nombre;
+  render();
+  // resaltar la fila
+  setTimeout(function(){
+    var filas=document.querySelectorAll("#cuerpo tr");
+    if(filas.length){filas[0].classList.add("fila-resalta");
+      filas[0].scrollIntoView({behavior:"smooth",block:"center"});}
+  },80);
+}
 
 /* ===== ALTA/EDICIÓN ===== */
 function abrirNuevo(){editId=null;document.getElementById("mTitulo").textContent="Nuevo insumo";
   document.getElementById("f-nombre").value="";document.getElementById("f-cat").value=inventario[0]?inventario[0].cat:"Insumos médicos";
   document.getElementById("f-pres").value="unidad";document.getElementById("f-stock").value=0;document.getElementById("f-min").value=10;
+  document.getElementById("f-caja").value="";
   llenarCatSelect();abrir("modalEdit");document.getElementById("f-nombre").focus();}
 function abrirEdit(x){var it=find(x);if(!it)return;editId=x;
   document.getElementById("mTitulo").textContent="Editar insumo";
   llenarCatSelect();document.getElementById("f-nombre").value=it.nombre;document.getElementById("f-cat").value=it.cat;
   document.getElementById("f-pres").value=it.pres||"";document.getElementById("f-stock").value=it.stock;document.getElementById("f-min").value=it.min;
+  document.getElementById("f-caja").value=it.caja||"";
   abrir("modalEdit");}
 function llenarCatSelect(){var set={},cats=[];
   for(var i=0;i<inventario.length;i++){if(!set[inventario[i].cat]){set[inventario[i].cat]=1;cats.push(inventario[i].cat);}}
   ["Insumos médicos","Medicamentos","Alimentos y víveres","Agua y bebidas","Higiene y aseo","Pañales","Ropa","Calzado","Descanso y abrigo","Juguetes","Otros"].forEach(function(c){if(!set[c]){set[c]=1;cats.push(c);}});
   document.getElementById("f-cat").innerHTML=cats.map(function(c){return '<option>'+esc(c)+'</option>'}).join("");}
 function guardar(){var nombre=val("f-nombre");if(!nombre){document.getElementById("f-nombre").focus();return;}
-  var d={nombre:nombre,cat:document.getElementById("f-cat").value,pres:val("f-pres"),stock:numv("f-stock"),min:numv("f-min")};
+  var d={nombre:nombre,cat:document.getElementById("f-cat").value,pres:val("f-pres"),stock:numv("f-stock"),min:numv("f-min"),caja:val("f-caja")};
   if(editId){var it=find(editId);for(var k in d)it[k]=d[k];}
   else{d.id=id();inventario.push(d);
     movimientos.push({id:id(),tipo:"in",itemId:d.id,nombre:d.nombre,cant:d.stock,unidad:d.pres,quien:sesion.nombre,autoriza:"",destino:"",nota:"Alta de nuevo insumo",fecha:new Date().toISOString()});guardarMov();}

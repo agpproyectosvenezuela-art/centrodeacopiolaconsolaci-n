@@ -57,6 +57,9 @@
   .quien{font-size:12px;text-align:right}
   .quien .rol{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:2px 9px;margin-top:2px;font-weight:600}
   .quien button{background:transparent;color:#eef3f8;border-color:rgba(255,255,255,.4);padding:5px 9px;font-size:12px;margin-left:6px}
+  .sync-estado{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:3px;margin-right:6px}
+  .sync-estado.ok{background:rgba(61,107,74,.25);color:#c8f0d4}
+  .sync-estado.off{background:rgba(154,59,47,.3);color:#f4cfc7}
 
   .tabs-nav{background:#fff;border-bottom:1px solid var(--linea);padding:0 12px;display:flex;gap:2px;overflow-x:auto;position:sticky;top:0;z-index:10}
   .tabs-nav button{border:0;border-bottom:3px solid transparent;background:transparent;border-radius:0;padding:12px 16px;font-size:14px;color:var(--tinta-suave);white-space:nowrap}
@@ -217,7 +220,7 @@
     <div class="titu"><p class="eyebrow">Centro de Acopio · Nuestra Señora de la Consolación</p>
       <h1>Control de insumos</h1></div>
     <div class="quien"><div id="quienNombre">&mdash;</div>
-      <div><span class="rol" id="quienRol">&mdash;</span><button onclick="salir()">Salir</button></div></div>
+      <div><span class="sync-estado off" id="syncEstado">&#9679; Conectando…</span><span class="rol" id="quienRol">&mdash;</span><button onclick="salir()">Salir</button></div></div>
   </header>
   <nav class="tabs-nav" id="tabsNav"></nav>
   <div class="wrap">
@@ -364,6 +367,40 @@
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, onSnapshot, enableIndexedDbPersistence }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQvqtz7UIp8Ms3FDhXWazdPsQNa1tFLpc",
+    authDomain: "centrodeacopio-aa5e2.firebaseapp.com",
+    projectId: "centrodeacopio-aa5e2",
+    storageBucket: "centrodeacopio-aa5e2.firebasestorage.app",
+    messagingSenderId: "537638140356",
+    appId: "1:537638140356:web:16094ccf3d39b8133a8c91"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+  enableIndexedDbPersistence(db).catch(function(){}); // cache offline
+
+  // Exponer helpers al script principal (no-módulo)
+  window.FB = {
+    ready: true,
+    // guardar una coleccion completa como un documento con array "items"
+    guardar: function(coleccion, arr){
+      return setDoc(doc(db, "acopio", coleccion), {items: arr, updated: Date.now()});
+    },
+    // escuchar cambios en vivo de una coleccion
+    escuchar: function(coleccion, callback){
+      return onSnapshot(doc(db, "acopio", coleccion), function(snap){
+        if(snap.exists()){ var d=snap.data(); callback(d.items||[], !snap.metadata.hasPendingWrites); }
+        else callback(null, true);
+      }, function(err){ console.warn("Firestore escuchar error:", err); });
+    }
+  };
+  document.dispatchEvent(new Event("firebase-listo"));
+</script>
 <script>
 var SEED_ITEMS=[
   {id:id(),nombre:"Adhesivos Quirurgicos  De Plastico",cat:"Insumos médicos",pres:"Unidad",stock:24,min:10},
@@ -558,10 +595,54 @@ function cargarDest(){
     {id:id(),nombre:"El Junquito km 12",zona:"El Junquito",lat:10.4989,lng:-67.0900,detalle:"Pañales y fórmulas de bebé",fecha:"2026-07-09"}
   ];
 }
-function guardarInv(){localStorage.setItem(KEY_INV,JSON.stringify(inventario))}
-function guardarReg(){localStorage.setItem(KEY_REG,JSON.stringify(registros))}
-function guardarMov(){localStorage.setItem(KEY_MOV,JSON.stringify(movimientos))}
-function guardarDest(){localStorage.setItem(KEY_DEST,JSON.stringify(destinos))}
+function guardarInv(){localStorage.setItem(KEY_INV,JSON.stringify(inventario));fbGuardar("inventario",inventario);}
+function guardarReg(){localStorage.setItem(KEY_REG,JSON.stringify(registros));fbGuardar("registros",registros);}
+function guardarMov(){localStorage.setItem(KEY_MOV,JSON.stringify(movimientos));fbGuardar("movimientos",movimientos);}
+function guardarDest(){localStorage.setItem(KEY_DEST,JSON.stringify(destinos));fbGuardar("destinos",destinos);}
+
+/* ===== SINCRONIZACIÓN FIREBASE (tiempo real) ===== */
+var fbActivo=false, fbEscribiendo=false;
+function fbGuardar(col, arr){
+  if(!window.FB||!window.FB.ready)return;
+  fbEscribiendo=true;
+  window.FB.guardar(col, arr).then(function(){setTimeout(function(){fbEscribiendo=false},400);})
+    .catch(function(e){fbEscribiendo=false;actualizarEstadoConexion(false);});
+}
+function actualizarEstadoConexion(ok){
+  var el=document.getElementById("syncEstado");if(!el)return;
+  el.innerHTML=ok?'&#9679; En línea':'&#9679; Sin conexión';
+  el.className="sync-estado"+(ok?" ok":" off");
+}
+function iniciarSync(){
+  if(!window.FB||!window.FB.ready){fbActivo=false;actualizarEstadoConexion(false);return;}
+  fbActivo=true;actualizarEstadoConexion(true);
+  // Escuchar cada coleccion. Si Firestore esta vacio, sembramos con lo local.
+  escucharCol("inventario",function(d){inventario=d;guardarInvLocal();},function(){fbGuardar("inventario",inventario);});
+  escucharCol("movimientos",function(d){movimientos=d;localStorage.setItem(KEY_MOV,JSON.stringify(d));},function(){fbGuardar("movimientos",movimientos);});
+  escucharCol("destinos",function(d){destinos=d;localStorage.setItem(KEY_DEST,JSON.stringify(d));},function(){fbGuardar("destinos",destinos);});
+  escucharCol("registros",function(d){registros=d;localStorage.setItem(KEY_REG,JSON.stringify(d));},function(){fbGuardar("registros",registros);});
+}
+function guardarInvLocal(){localStorage.setItem(KEY_INV,JSON.stringify(inventario))}
+function escucharCol(col, onData, onVacio){
+  window.FB.escuchar(col, function(items, deServidor){
+    actualizarEstadoConexion(true);
+    if(items===null){ onVacio(); return; }
+    // ignorar el eco de nuestra propia escritura reciente
+    if(fbEscribiendo && !deServidor) return;
+    onData(items);
+    refrescarVistas();
+  });
+}
+function refrescarVistas(){
+  if(!sesion)return;
+  construirFiltros();render();
+  var v=document.querySelector(".vista.on");
+  if(v){var vid=v.id;
+    if(vid==="v-dash")renderDash();
+    if(vid==="v-informe")renderInforme();
+    if(vid==="v-traza")renderTraza();
+    if(vid==="v-mapa"&&mapaObj)renderMapa();}
+}
 
 function estado(it){
   if(it.stock<=0)return{clase:"e-crit",txt:"Agotado",rank:0};
@@ -920,10 +1001,17 @@ for(var b=0;b<bgs.length;b++){bgs[b].addEventListener("click",function(e){if(e.t
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){var m=document.querySelectorAll(".modal-bg.on");for(var i=0;i<m.length;i++)m[i].className="modal-bg";}});
 document.getElementById("buscar").addEventListener("input",render);
 document.getElementById("buscarTraza").addEventListener("input",renderTraza);
-// persistir seed la primera vez
-if(!localStorage.getItem(KEY_INV))guardarInv();
-if(!localStorage.getItem(KEY_MOV))guardarMov();
-if(!localStorage.getItem(KEY_DEST))guardarDest();
+// persistir seed la primera vez (respaldo local)
+if(!localStorage.getItem(KEY_INV))guardarInvLocal();
+if(!localStorage.getItem(KEY_MOV))localStorage.setItem(KEY_MOV,JSON.stringify(movimientos));
+if(!localStorage.getItem(KEY_DEST))localStorage.setItem(KEY_DEST,JSON.stringify(destinos));
+
+// Iniciar sincronización en tiempo real con Firebase
+if(window.FB&&window.FB.ready){iniciarSync();}
+else{document.addEventListener("firebase-listo",iniciarSync);}
+// reconexión: al volver online, reintentar
+window.addEventListener("online",function(){actualizarEstadoConexion(true);});
+window.addEventListener("offline",function(){actualizarEstadoConexion(false);});
 </script>
 </body>
 </html>
